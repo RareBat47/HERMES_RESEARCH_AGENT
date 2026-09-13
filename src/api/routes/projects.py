@@ -1,12 +1,21 @@
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.memory.project_memory import ProjectMemory
 from src.memory.user_scratchpad import UserScratchpadManager
 from src.storage.database import get_db
+from src.storage.models import Project, User
 
 router = APIRouter(prefix="/projects", tags=["projects"])
+
+
+class CreateProjectRequest(BaseModel):
+    name: str
+    research_goal: Optional[str] = None
+    inclusion_criteria: Optional[List[str]] = None
+    exclusion_criteria: Optional[List[str]] = None
 
 
 class DecisionRequest(BaseModel):
@@ -27,15 +36,64 @@ class ScratchpadRequest(BaseModel):
     project_id: Optional[int] = None
 
 
-@router.post("/create")
+@router.post("", response_model=dict)
+@router.post("/create", response_model=dict)
 async def create_project(
-    name: str,
-    description: Optional[str] = None,
+    req: CreateProjectRequest,
     db: AsyncSession = Depends(get_db),
 ):
     mem = ProjectMemory(db)
-    proj = await mem.get_or_create_project(name, description)
-    return {"id": proj.id, "name": proj.name, "description": proj.description}
+    proj = await mem.get_or_create_project(req.name, req.research_goal)
+    if req.inclusion_criteria:
+        proj.inclusion_criteria = {"criteria": req.inclusion_criteria}
+    if req.exclusion_criteria:
+        proj.exclusion_criteria = {"criteria": req.exclusion_criteria}
+    await db.commit()
+    await db.refresh(proj)
+    return {
+        "id": proj.id,
+        "name": proj.name,
+        "research_goal": proj.research_goal,
+        "is_active": proj.is_active,
+    }
+
+
+@router.get("", response_model=List[dict])
+async def list_projects(db: AsyncSession = Depends(get_db)):
+    stmt = select(Project).order_by(Project.created_at.desc())
+    res = await db.execute(stmt)
+    projects = res.scalars().all()
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "research_goal": p.research_goal,
+            "is_active": p.is_active,
+        }
+        for p in projects
+    ]
+
+
+@router.post("/{project_id}/switch")
+async def switch_project(
+    project_id: int,
+    discord_user_id: str = Query(..., description="Discord user ID switching project"),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(User).where(User.discord_user_id == discord_user_id)
+    res = await db.execute(stmt)
+    user = res.scalar_one_or_none()
+    if not user:
+        user = User(discord_user_id=discord_user_id, username=f"User_{discord_user_id[:6]}")
+        db.add(user)
+
+    user.active_project_id = project_id
+    await db.commit()
+    return {
+        "status": "success",
+        "user_id": user.id,
+        "active_project_id": project_id,
+    }
 
 
 @router.get("/{project_id}/truth")
@@ -75,6 +133,16 @@ async def add_task(
     mem = ProjectMemory(db)
     task = await mem.add_task(project_id, req.title, req.user_id)
     return {"id": task.id, "title": task.title, "status": task.status}
+
+
+@router.get("/{project_id}/tasks")
+async def list_tasks(
+    project_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    mem = ProjectMemory(db)
+    tasks = await mem.list_tasks(project_id)
+    return [{"id": t.id, "title": t.title, "status": t.status} for t in tasks]
 
 
 @router.post("/user/{discord_user_id}/scratchpad")

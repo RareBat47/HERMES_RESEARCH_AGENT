@@ -15,12 +15,25 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
 
+    # 2-Researcher Discord Allowlist
+    DISCORD_BOT_TOKEN: str = "dummy_token"
+    DISCORD_GUILD_ID: Optional[str] = None
+    USER1_ID: Optional[str] = None
+    USER2_ID: Optional[str] = None
+    DISCORD_RESEARCHER_1_ID: Optional[str] = None
+    DISCORD_RESEARCHER_2_ID: Optional[str] = None
+
     # LLM Gateway
-    LLM_BASE_URL: str = "https://api.agentrouter.org/v1"
-    LLM_API_KEY: str = "dummy_key_for_dev"
+    LLM_BASE_URL: str = "https://agentrouter.org/v1"
+    LLM_API_KEY: str = "dummy_key"
     LLM_MODEL: str = "gpt-4o-mini"
+
+    # Embedding & Reranker Pipeline
+    EMBEDDING_PROVIDER: str = "openai"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIM: int = 1536
+    USE_RERANKER: bool = False
+    RERANKER_MODEL: str = "BAAI/bge-reranker-base"
 
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./hermes_research.db"
@@ -45,14 +58,17 @@ class Settings(BaseSettings):
 
     # Academic APIs
     SEMANTIC_SCHOLAR_API_KEY: Optional[str] = None
-    NCBI_EMAIL: str = "hermes.agent@example.com"
+    NCBI_EMAIL: str = "researcher@example.com"
     NCBI_API_KEY: Optional[str] = None
+    OPENALEX_EMAIL: str = "researcher@example.com"
 
-    # Discord Bot
-    DISCORD_BOT_TOKEN: str = "dummy_token"
-    DISCORD_GUILD_ID: Optional[str] = None
-    DISCORD_RESEARCHER_1_ID: Optional[str] = None
-    DISCORD_RESEARCHER_2_ID: Optional[str] = None
+    @property
+    def allowed_discord_user_ids(self) -> set[str]:
+        ids = set()
+        for uid in [self.USER1_ID, self.USER2_ID, self.DISCORD_RESEARCHER_1_ID, self.DISCORD_RESEARCHER_2_ID]:
+            if uid:
+                ids.add(str(uid).strip())
+        return ids
 
 
 @lru_cache()

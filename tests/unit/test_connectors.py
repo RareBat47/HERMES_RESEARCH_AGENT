@@ -61,3 +61,27 @@ def test_semantic_scholar_model_conversion():
     assert paper.year == 2020
     assert paper.citation_count == 15000
     assert paper.arxiv_id == "2005.14165"
+
+
+def test_openalex_model_conversion():
+    from src.connectors.openalex_connector import OpenAlexConnector
+    connector = OpenAlexConnector()
+    sample_item = {
+        "title": "Deep Residual Learning for Image Recognition",
+        "authorships": [{"author": {"display_name": "Kaiming He"}}],
+        "publication_year": 2016,
+        "cited_by_count": 180000,
+        "doi": "https://doi.org/10.1109/CVPR.2016.90",
+        "abstract_inverted_index": {"Deeper": [0], "neural": [1], "networks": [2], "are": [3], "difficult": [4], "to": [5], "train.": [6]},
+        "primary_location": {"source": {"display_name": "CVPR"}, "pdf_url": "https://arxiv.org/pdf/1512.03385.pdf"},
+        "ids": {"openalex": "https://openalex.org/W2164472856"},
+    }
+    paper = connector._convert_to_model(sample_item)
+    assert paper is not None
+    assert paper.bibtex_key == "He2016Deep"
+    assert paper.year == 2016
+    assert paper.citation_count == 180000
+    assert paper.venue == "CVPR"
+    assert "Deeper neural networks" in paper.abstract
+    assert paper.doi == "10.1109/CVPR.2016.90"
+

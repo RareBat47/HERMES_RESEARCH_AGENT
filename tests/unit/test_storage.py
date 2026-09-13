@@ -55,3 +55,61 @@ async def test_user_scratchpad():
 
         pad = await mgr.get_scratchpad(user.id)
         assert "Vaswani" in pad
+
+
+@pytest.mark.asyncio
+async def test_paper_chunk_and_ingestion_job():
+    from src.storage.models import IngestionJob, Paper, PaperChunk, PaperSection
+    await init_db()
+
+    async with async_session_maker() as session:
+        # 1. Test IngestionJob
+        job = IngestionJob(identifier="1706.03762", status="parsing", progress=50)
+        session.add(job)
+        await session.flush()
+        assert job.id is not None
+        assert job.progress == 50
+
+        # 2. Test Paper and PaperChunk
+        paper = Paper(
+            bibtex_key="TestVaswani2017",
+            title="Attention Is All You Need",
+            abstract="Transformer architecture test",
+            parse_status="parsed",
+            index_status="indexed",
+        )
+        session.add(paper)
+        await session.flush()
+
+        section = PaperSection(
+            paper_id=paper.id,
+            section_name="Methods",
+            heading="3. Architecture",
+            text_content="Transformer model details",
+            page_number=3,
+        )
+        session.add(section)
+        await session.flush()
+
+        chunk = PaperChunk(
+            paper_id=paper.id,
+            section_id=section.id,
+            chunk_index=0,
+            text="Transformer model details",
+            char_start=0,
+            char_end=24,
+            page_number=3,
+            qdrant_point_id="mock-qdrant-uuid-12345",
+            embedding_model="text-embedding-3-small",
+        )
+        session.add(chunk)
+        await session.commit()
+
+        # Query chunk
+        stmt = select(PaperChunk).where(PaperChunk.qdrant_point_id == "mock-qdrant-uuid-12345")
+        res = await session.execute(stmt)
+        saved_chunk = res.scalar_one_or_none()
+        assert saved_chunk is not None
+        assert saved_chunk.char_end == 24
+        assert saved_chunk.paper_id == paper.id
+

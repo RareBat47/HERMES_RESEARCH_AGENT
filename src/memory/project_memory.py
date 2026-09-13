@@ -10,12 +10,18 @@ class ProjectMemory:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_or_create_project(self, name: str, description: Optional[str] = None) -> Project:
+    async def get_or_create_project(
+        self,
+        name: str,
+        research_goal: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Project:
         stmt = select(Project).where(Project.name == name)
         res = await self.db.execute(stmt)
         project = res.scalar_one_or_none()
         if not project:
-            project = Project(name=name, description=description)
+            goal = research_goal or description
+            project = Project(name=name, research_goal=goal)
             self.db.add(project)
             await self.db.commit()
             await self.db.refresh(project)
@@ -75,8 +81,10 @@ class ProjectMemory:
 
         return {
             "project_name": proj.name if proj else "Default",
-            "research_question": proj.research_question if proj else "",
-            "hypotheses": proj.hypotheses if proj else {},
+            "research_goal": proj.research_goal if proj else "",
+            "research_question": proj.research_goal if proj else "",
+            "inclusion_criteria": proj.inclusion_criteria if proj else {},
+            "exclusion_criteria": proj.exclusion_criteria if proj else {},
             "decisions": [
                 {"title": d.title, "decision": d.decision, "rationale": d.rationale}
                 for d in decisions

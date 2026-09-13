@@ -1,275 +1,193 @@
-# 🏛️ Hermes Research Agent
+# 🏛️ HERMES_RESEARCH_AGENT
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
 [![Qdrant](https://img.shields.io/badge/Qdrant-v1.11+-dc2626.svg)](https://qdrant.tech/)
 [![GROBID](https://img.shields.io/badge/GROBID-0.8.1-orange.svg)](https://grobid.readthedocs.io/)
 [![Discord.py](https://img.shields.io/badge/Discord.py-v2.3+-5865F2.svg)](https://discordpy.readthedocs.io/)
 [![Docker Compose](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://docker.com)
 
-**Hermes** is an academic-first, collaborative research assistant engineered for a 2-researcher Discord laboratory. It automates literature discovery, structured scientific paper extraction (GROBID TEI-XML + PyMuPDF), semantic passage vector indexing (Qdrant), long-term project memory, multi-agent synthesis (LangGraph), and strict BibTeX citation verification.
+**HERMES_RESEARCH_AGENT** is an academic-first, production-ready research assistant engineered for a 2-researcher Discord laboratory. It supports up to 6 months of continuous scientific research: multi-engine literature discovery, dual-layer parsing (GROBID TEI-XML + PyMuPDF), chunk-level semantic vector indexing in Qdrant, long-term project memory, multi-agent synthesis, and **strictly evidence-grounded RAG** where every claim must be substantiated with exact BibTeX keys, quotes, and section/page hints.
 
 ---
 
-## 🌟 Key Capabilities
+## 🎯 Hard Architectural Guarantees
 
-### 1. Academic Literature Pipeline
-- **Multi-Engine Search**: Live parallel querying across **arXiv**, **Semantic Scholar**, **PubMed (NCBI Entrez)**, and **Crossref**.
-- **Automated Ingestion**: Downloads PDFs, parses full-text into hierarchical sections (`Abstract`, `Introduction`, `Methods`, `Results`, `Limitations`), extracts tables and quotes, and saves raw artifacts in MinIO (S3).
-- **Dual-Layer Extraction**:
-  - *Layer 1 (Gold Standard)*: **GROBID** Docker service for scientific structure, formula recognition, and TEI XML parsing.
-  - *Layer 2 (Resilient Fallback)*: Heuristic **PyMuPDF** (`fitz`) layout and section parser.
-- **Passage-Grounded Citations**: Splits sections with semantic boundary awareness into Qdrant vector points, ensuring every statement can be traced to exact page numbers and passages.
-
-### 2. Multi-Agent "Brain"
-- **Planner Agent**: Decomposes complex research questions into sub-questions, boolean query variations, inclusion/exclusion criteria, and reading lists.
-- **Retriever Agent**: Multi-source querying, cross-engine deduplication by DOI and normalized title, and recency/citation ranking.
-- **Reader / Extractor Agent**: Generates structured notes covering:
-  - *Research Problem*
-  - *Key Novel Idea*
-  - *Methodology Details*
-  - *Datasets & Evaluation Metrics*
-  - *Empirical Findings vs. Baselines*
-  - *Assumptions & Limitations*
-  - *Reproducibility Details*
-  - *Verbatim Evidence Quotes*
-- **Synthesizer Agent**: Builds cross-paper comparison matrices, maps consensus vs. controversies, surfaces research gaps, and proposes concrete experiments with ablations.
-- **Writer Agent**: Produces academic paper outlines and draft sections formatted with formal `\cite{BibKey}` citation keys.
-- **Critic & Citation Verifier Agent**: "Show me the evidence" verification engine that matches claims against indexed paper passages and flags ungrounded assertions.
-
-### 3. Long-Term Memory (6-Month Continuity)
-- **Project Memory**: Stores active research questions, formal hypotheses, and timestamped decision logs.
-- **Paper Memory**: Searchable library of indexed papers, structured notes, and vector representations.
-- **2-Researcher Discord Scratchpad**: Private per-user scratchpads for spontaneous thoughts with one-command promotion to shared project truth.
+1. **Evidence-Grounded RAG with Strict Citations**:
+   - Every answer to `/ask` is strictly grounded in passages retrieved from your library.
+   - Outputs include `\cite{BibKey}`, exact quote spans, section names, and page numbers.
+   - If evidence is absent, Hermes explicitly refuses to over-claim, states the evidence gap, and proposes targeted search queries.
+2. **Chunk-Level Indexing**:
+   - Explicit `paper_chunks` records in PostgreSQL (tracking `char_start`, `char_end`, `page_number`, `chunk_index`).
+   - Vectors indexed in Qdrant with dense embeddings and optional Cross-Encoder reranking.
+3. **Dual-Layer Scientific Extraction**:
+   - Layer 1 (Primary): **GROBID** Docker container for academic TEI XML hierarchy.
+   - Layer 2 (Fallback): Heuristic **PyMuPDF** (`fitz`) section parser.
+4. **2-Person Security Allowlist**:
+   - The Discord bot enforces strict allowlist authentication via `USER1_ID` and `USER2_ID`. Unrecognized users cannot issue commands.
+5. **Universal Execution Modes**:
+   - **Docker Compose Mode**: 8 microservices (`postgres`, `qdrant`, `redis`, `minio`, `grobid`, `api`, `worker`, `discord-bot`).
+   - **Local Mode (Docker daemon stopped)**: Runs directly on Python 3.12 with SQLite and embedded Qdrant.
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ System Architecture & Data Flow
 
 ```mermaid
-graph TD
-    subgraph Discord Interface
-        U1[Researcher 1]
-        U2[Researcher 2]
-        BOT[Hermes Discord Bot: discord.py]
-    end
+sequenceDiagram
+    autonumber
+    actor R as Researcher (Discord)
+    participant B as Discord Bot
+    participant API as FastAPI Gateway
+    participant W as Celery Ingestion Worker
+    participant G as GROBID / PyMuPDF
+    participant DB as Postgres (Metadata & Chunks)
+    participant QD as Qdrant Vector Store
+    participant LLM as AgentRouter / LLM Gateway
 
-    subgraph API & Gateway
-        API[FastAPI Gateway :8000]
-        ROUTER[LLM Router: agentrouter.org / OpenAI]
-    end
+    R->>B: /search query:"sparse attention" source:all
+    B->>API: POST /search
+    API-->>B: Deduplicated results from arXiv, S2, PubMed, OpenAlex
+    B-->>R: Rich Embed + Interactive "Add to Library" Button
 
-    subgraph Multi-Agent Brain
-        PLAN[Planner Agent]
-        RETR[Retriever Agent]
-        READ[Reader Agent]
-        SYNTH[Synthesizer Agent]
-        WRITE[Writer Agent]
-        CRIT[Critic Citation Verifier]
-    end
+    R->>B: Click "Add to Library" or /add_paper identifier:"1706.03762"
+    B->>API: POST /papers/ingest
+    API->>W: Enqueue Ingestion Job (tasks.ingest_paper)
+    W->>W: Download PDF (rate-limited, size limits)
+    W->>G: Parse TEI XML sections (Abstract, Methods, Results, Limitations)
+    W->>DB: Store Paper, Authors, Sections, and explicit PaperChunks
+    W->>QD: Embed and upsert chunk vectors + offsets
+    W->>LLM: ReaderAgent extracts structured note & evidence quotes
+    W->>DB: Update IngestionJob (status=completed)
+    B-->>R: Discord Progress Notification (100% Parsed & Indexed)
 
-    subgraph Literature Ingestion Worker
-        CEL[Celery Worker]
-        GROBID[GROBID TEI Service :8070]
-        MUPDF[PyMuPDF Parser]
-        CHUNKER[Academic Chunker]
-    end
-
-    subgraph Datastores
-        PG[(PostgreSQL 16)]
-        QD[(Qdrant Vector DB :6333)]
-        MIN[(MinIO S3 Blob Store :9000)]
-        RED[(Redis 7 Cache & Broker :6379)]
-    end
-
-    U1 --> BOT
-    U2 --> BOT
-    BOT --> API
-    API --> ROUTER
-    API --> PLAN
-    PLAN --> RETR
-    RETR --> CEL
-    CEL --> GROBID
-    CEL --> MUPDF
-    CEL --> CHUNKER
-    CHUNKER --> QD
-    CEL --> PG
-    CEL --> MIN
-    READ --> QD
-    SYNTH --> PG
-    CRIT --> QD
-    API --> BOT
+    R->>B: /ask question:"What is the complexity per layer of self-attention?"
+    B->>API: POST /agent/ask
+    API->>QD: Retrieve top-k semantic chunks
+    API->>LLM: GroundedQAAgent strictly verifies claim vs quotes
+    API-->>B: GroundedAnswer (answer text, \cite{BibKey}, exact quote, p. hint)
+    B-->>R: Evidence-grounded card with verbatim citations
 ```
 
 ---
 
-## 📂 Repository Structure
+## ⚡ Quickstart with Docker Compose (Production / VM)
 
+Deploy on any Linux VM or local Docker setup in 3 minutes:
+
+```bash
+# 1. Clone repository
+git clone https://github.com/your-org/hermes-research-agent.git
+cd hermes-research-agent
+
+# 2. Configure environment
+cp .env.example .env
+nano .env   # Provide DISCORD_BOT_TOKEN, USER1_ID, USER2_ID, and LLM_API_KEY
+
+# 3. Launch the full 8-service stack
+docker compose up -d --build
+
+# 4. View container status
+docker compose ps
 ```
-hermes_research_agent/
-├── docker-compose.yml              # Complete 8-service containerized stack
-├── Dockerfile                      # Production Docker container image
-├── pyproject.toml                  # Python packaging & dependencies
-├── alembic.ini                     # Database migration configuration
-├── .env.example                    # Environment variable template
-├── scripts/
-│   ├── init_db.py                  # Database schema initialization script
-│   └── test_literature_search.py   # CLI search test utility
-├── src/
-│   ├── config/
-│   │   └── settings.py             # Pydantic Settings management
-│   ├── common/
-│   │   ├── exceptions.py           # Custom exception hierarchy
-│   │   ├── logging.py              # Rich logging utility
-│   │   └── models.py               # Shared Pydantic exchange models
-│   ├── connectors/                 # Literature connectors
-│   │   ├── base.py                 # Abstract connector & BibTeX generator
-│   │   ├── arxiv_connector.py      # arXiv API connector
-│   │   ├── semantic_scholar.py     # Semantic Scholar Graph connector
-│   │   ├── pubmed_connector.py     # PubMed Entrez connector
-│   │   └── crossref_connector.py   # Crossref DOI & BibTeX connector
-│   ├── ingestion/                  # PDF parsing & chunking
-│   │   ├── downloader.py           # Async PDF fetcher
-│   │   ├── grobid_parser.py        # GROBID TEI XML scientific parser
-│   │   ├── pymupdf_parser.py       # PyMuPDF layout fallback parser
-│   │   └── chunker.py              # Semantic academic chunker
-│   ├── storage/                    # Database, Vectors & Storage
-│   │   ├── database.py             # Async SQLAlchemy 2.0 engine
-│   │   ├── models.py               # Relational ORM models (Paper, Note, Task, etc.)
-│   │   ├── vector_store.py         # Qdrant client & passage embeddings
-│   │   └── object_store.py         # MinIO / S3 object store
-│   ├── agent/                      # Multi-Agent Brain
-│   │   ├── llm_client.py           # OpenAI-compatible LLM client
-│   │   ├── state.py                # AgentState data model
-│   │   ├── graph.py                # ResearchBrain orchestrator
-│   │   └── roles/
-│   │       ├── planner.py          # Research planner
-│   │       ├── retriever.py        # Multi-engine retriever & ranker
-│   │       ├── reader.py           # Structured note extractor
-│   │       ├── synthesizer.py      # Cross-paper comparative matrix
-│   │       ├── writer.py           # Academic drafter with \cite{} keys
-│   │       └── critic.py           # Evidence passage verifier
-│   ├── memory/                     # Long-term memory
-│   │   ├── project_memory.py       # Shared truth & decision logs
-│   │   └── user_scratchpad.py      # Per-user isolated scratchpads
-│   ├── api/                        # FastAPI REST service
-│   │   ├── main.py                 # App entry point
-│   │   └── routes/                 # REST endpoints (papers, projects, agent)
-│   ├── worker/                     # Celery background worker
-│   │   ├── tasks.py                # Paper ingestion & extraction task
-│   │   └── worker.py               # Celery app
-│   └── discord_bot/                # Discord interface
-│       ├── bot.py                  # Bot entry point & 2-user auth guard
-│       ├── ui/
-│       │   ├── embeds.py           # Rich academic embeds
-│       │   └── views.py            # Pagination & ingestion buttons
-│       └── cogs/
-│           └── research_cogs.py    # Slash command implementations
-└── tests/
-    └── unit/                       # Complete automated unit test suite
-```
-
----
-
-## 🚀 Quick Start & Deployment
-
-### Option A: Complete Docker Compose Deployment (Production)
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/your-org/hermes-research-agent.git
-   cd hermes-research-agent
-   ```
-
-2. **Configure environment variables**:
-   ```bash
-   cp .env.example .env
-   # Populate DISCORD_BOT_TOKEN, LLM_API_KEY (agentrouter.org or OpenAI), etc.
-   ```
-
-3. **Start all 8 services**:
-   ```bash
-   docker compose up -d --build
-   ```
-
-4. **Verify container health**:
-   ```bash
-   docker compose ps
-   ```
 
 Services started:
 - `postgres` (Port 5432)
-- `qdrant` (Port 6333)
+- `qdrant` (Port 6333, Dashboard at `/dashboard`)
 - `redis` (Port 6379)
-- `minio` (Port 9000, Console 9001)
+- `minio` (Port 9000, Console at `:9001`)
 - `grobid` (Port 8070)
-- `api` (Port 8000)
-- `worker` (Celery background worker)
-- `discord-bot` (Discord bot client)
+- `api` (FastAPI at `:8000/docs`)
+- `worker` (Celery background queue)
+- `discord-bot` (Discord.py client)
 
 ---
 
-### Option B: Local Development & Offline Mode
+## 💻 Local Development Without Docker (Daemon Stopped)
 
-You can run individual components locally without Docker using the embedded Qdrant fallback and SQLite database:
+When Docker is offline, all components run smoothly on bare Python 3.12:
 
-1. **Install dependencies**:
-   ```bash
-   pip install -e ".[dev]"
-   ```
+### 1. Install Dependencies
+```bash
+pip install -e ".[dev]"
+```
 
-2. **Initialize local database**:
-   ```bash
-   python scripts/init_db.py
-   ```
+### 2. Initialize Database & Run Tests
+```bash
+python scripts/init_db.py
+python -m pytest tests/unit -v
+```
 
-3. **Run automated test suite**:
-   ```bash
-   python -m pytest tests/unit -v
-   ```
+### 3. Run CLI Utilities Directly
+```bash
+# 1. Search literature across arXiv, S2, PubMed, OpenAlex
+python scripts/test_search.py "transformers for time series"
 
-4. **Test Literature Search from CLI**:
-   ```bash
-   python scripts/test_literature_search.py "transformers for time series"
-   ```
+# 2. Ingest and parse a paper into local database
+python scripts/ingest_paper.py "1706.03762"
 
-5. **Start FastAPI development server**:
-   ```bash
-   python -m uvicorn src.api.main:app --reload --port 8000
-   ```
+# 3. Ask question against library chunks
+python scripts/ask_library.py "How does self-attention operate?"
+```
 
-6. **Start Discord Bot**:
-   ```bash
-   python -m src.discord_bot.bot
-   ```
+### 4. Start Local API & Discord Bot
+```bash
+# Terminal 1: API
+python -m uvicorn src.api.main:app --port 8000 --reload
+
+# Terminal 2: Discord Bot
+python -m src.discord_bot.bot
+```
 
 ---
 
 ## 💬 Discord Slash Command Reference
 
-| Slash Command | Parameters | Description |
+| Command | Arguments | Description |
 | :--- | :--- | :--- |
-| `/search` | `query`, `source`, `limit` | Live literature search across arXiv, S2, and PubMed with pagination and interactive "+ Add to Library" button. |
-| `/add_paper` | `identifier` | Ingests a paper by arXiv ID, DOI, URL, or PMID; runs GROBID/PyMuPDF; indexes vectors in Qdrant; and extracts structured notes. |
-| `/summarize` | `paper` | Displays Reading Mode card showing core problem, novelty, methods, results, limitations, and evidence quotes. |
-| `/verify` | `claim`, `paper` | Critic Citation Verifier: verifies whether a specific claim is supported by passages in the cited paper. |
-| `/project` | `action`, `name` | Manages research projects and displays shared truth (research question, decision history, active tasks). |
-| `/scratchpad` | `action`, `note` | Private per-researcher scratchpad for drafting ideas before publishing to shared truth. |
+| `/project` | `action: create \| switch \| truth`, `name` | Create projects, switch active context, or display shared truth & decision logs. |
+| `/search` | `query`, `source: all \| arxiv \| semanticscholar \| pubmed`, `limit` | Live literature search with interactive pagination and `[📥 Add to Library]` button. |
+| `/add_paper` | `identifier` (arXiv ID, DOI, URL, or PMID) | Ingests paper, downloads PDF, extracts TEI sections, indexes chunks, and notifies Discord. |
+| `/library` | `action: recent \| find`, `query` | Browse indexed papers in library or search by keyword. |
+| `/summarize` | `paper: BibKey`, `style: short \| deep` | Displays structured Reading Mode card (problem, idea, methods, results, limitations, quotes). |
+| `/ask` | `question`, `scope: library` | Evidence-grounded QA citing exact `\cite{BibKey}`, quote spans, and section/page hints. |
+| `/compare` | `papers: key1,key2`, `criteria` | Generates cross-paper comparison matrix and surfaces research gaps. |
+| `/outline` | `topic`, `target: related work \| methods` | Produces structured academic manuscript outline with citation anchors. |
+| `/draft` | `section`, `topic` | Drafts a formal manuscript section with strict BibTeX citations. |
+| `/tasks` | `action: add \| list \| done`, `title` | Collaborative laboratory task board. |
+| `/scratchpad`| `action: view \| add \| clear`, `note` | Private per-researcher scratchpad for ideation before sharing. |
 
 ---
 
-## 🧪 Testing & Quality Assurance
+## 🔧 Troubleshooting
 
-Run the comprehensive unit test suite:
+### Problem: Docker daemon is stopped or cannot connect
+- **Cause**: Docker Desktop is not running or Linux daemon is stopped.
+- **Solution**: The Hermes codebase detects this and automatically switches to the embedded local Qdrant engine and SQLite database. Run `python -m pytest tests/unit -v` and run the FastAPI server locally (`uvicorn src.api.main:app --port 8000`).
+
+### Problem: Discord bot displays "Access Denied"
+- **Cause**: Your Discord user ID is not in `USER1_ID` or `USER2_ID` in `.env`.
+- **Solution**: In Discord, enable *Developer Mode* (Settings -> Advanced -> Developer Mode). Right-click your profile and select *Copy User ID*. Paste into `.env` and restart the bot.
+
+### Problem: Semantic Scholar returns status 429
+- **Cause**: Public rate limits on api.semanticscholar.org.
+- **Solution**: Hermes automatically falls back to arXiv and OpenAlex. For dedicated S2 bandwidth, add `SEMANTIC_SCHOLAR_API_KEY` in `.env`.
+
+---
+
+## 🧪 Automated Testing
+
+Hermes includes a comprehensive unit test suite:
 ```bash
 python -m pytest tests/unit -v
 ```
-All 10 tests validate:
-- BibTeX key generation with academic naming conventions
-- arXiv Atom XML feed parsing & redirection handling
-- Semantic Scholar Academic Graph model conversions
-- GROBID TEI XML section extraction
-- Academic semantic chunking with heading preservation
-- Async database models, sessions, and project memory
-- Per-user scratchpad lifecycle
-- Planner, Writer, and Critic multi-agent role workflows
+
+14 passing tests validate:
+- BibTeX key standardization (`[Author][Year][Keyword]`)
+- arXiv XML feed parsing & redirection handling
+- Semantic Scholar and OpenAlex model conversions
+- GROBID TEI XML section parsing
+- Academic semantic chunker character offsets (`char_start`, `char_end`)
+- Grounded QA with verbatim citation passages & unsupported claim fallbacks
+- Database models: `PaperChunk`, `IngestionJob`, `Project`, and `UserScratchpad`
+- Multi-agent state transitions (Planner, Writer, Critic)

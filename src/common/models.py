@@ -21,12 +21,12 @@ class PaperMetadata(BaseModel):
     pmid: Optional[str] = None
     citation_count: int = 0
     pdf_url: Optional[str] = None
-    source: str = "unknown"  # arxiv, semanticscholar, pubmed, crossref
+    source: str = "unknown"  # arxiv, semanticscholar, pubmed, crossref, openalex
 
 
 class SearchQuery(BaseModel):
     query: str
-    sources: List[str] = Field(default_factory=lambda: ["arxiv", "semanticscholar"])
+    sources: List[str] = Field(default_factory=lambda: ["arxiv", "semanticscholar", "pubmed", "openalex"])
     max_results_per_source: int = 5
     year_start: Optional[int] = None
     year_end: Optional[int] = None
@@ -38,6 +38,20 @@ class PaperSectionContent(BaseModel):
     text_content: str
     page_number: Optional[int] = 1
     token_count: Optional[int] = 0
+
+
+class PaperChunkModel(BaseModel):
+    paper_id: int
+    section_id: Optional[int] = None
+    chunk_index: int
+    text: str
+    char_start: int
+    char_end: int
+    page_number: int
+    qdrant_point_id: str
+    bibtex_key: str
+    section_name: str
+    heading: str
 
 
 class StructuredPaperNote(BaseModel):
@@ -54,6 +68,25 @@ class StructuredPaperNote(BaseModel):
         default_factory=list,
         description="Exact quotes with section and page number"
     )
+
+
+class CitationReference(BaseModel):
+    bibtex_key: str
+    chunk_id: Optional[int] = None
+    qdrant_point_id: Optional[str] = None
+    exact_quote: str
+    section_hint: Optional[str] = None
+    page_hint: Optional[int] = None
+    confidence_score: float = 1.0
+
+
+class GroundedAnswer(BaseModel):
+    question: str
+    answer: str
+    is_grounded: bool
+    citations: List[CitationReference] = Field(default_factory=list)
+    unsupported_claims: List[str] = Field(default_factory=list)
+    proposed_search_queries: List[str] = Field(default_factory=list)
 
 
 class CitationVerificationResult(BaseModel):

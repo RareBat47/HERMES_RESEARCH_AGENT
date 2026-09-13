@@ -14,9 +14,33 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 
+async def check_interaction_authorization(interaction: discord.Interaction) -> bool:
+    """Enforces strict 2-researcher allowlist via USER1_ID and USER2_ID."""
+    allowed = settings.allowed_discord_user_ids
+    if not allowed:
+        # Development mode: allow interaction if no allowlist configured
+        return True
+
+    user_id = str(interaction.user.id)
+    if user_id in allowed:
+        return True
+
+    await interaction.response.send_message(
+        "⛔ **Access Denied**: Your Discord user ID is not authorized for this laboratory.",
+        ephemeral=True,
+    )
+    return False
+
+
+bot.tree.interaction_check = check_interaction_authorization
+
+
 @bot.event
 async def on_ready():
     logger.info(f"Hermes Discord Bot logged in as: {bot.user.name} (ID: {bot.user.id})")
+    allowed = settings.allowed_discord_user_ids
+    logger.info(f"Enforcing 2-researcher allowlist: {allowed if allowed else 'Open/Development Mode'}")
+
     try:
         if settings.DISCORD_GUILD_ID:
             guild = discord.Object(id=int(settings.DISCORD_GUILD_ID))
@@ -28,20 +52,6 @@ async def on_ready():
             logger.info(f"Globally synced {len(synced)} slash commands.")
     except Exception as e:
         logger.error(f"Failed to sync slash commands: {e}")
-
-
-@bot.check
-async def check_researcher_authorization(ctx: commands.Context) -> bool:
-    """Authorize only designated Researcher 1 and Researcher 2 if IDs are configured."""
-    allowed_ids = [settings.DISCORD_RESEARCHER_1_ID, settings.DISCORD_RESEARCHER_2_ID]
-    allowed_ids = [uid for uid in allowed_ids if uid]
-
-    if not allowed_ids:
-        # Dev mode: allow any user in guild
-        return True
-
-    user_id_str = str(ctx.author.id)
-    return user_id_str in allowed_ids
 
 
 async def main():
