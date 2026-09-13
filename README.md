@@ -217,11 +217,25 @@ python -m src.discord_bot.bot
 | `QDRANT_URL` | `http://qdrant:6333` | Qdrant vector database URL |
 | `REDIS_URL` | `redis://redis:6379/0` | Redis broker and cache URL |
 | `MINIO_ENDPOINT` | `minio:9000` | S3-compatible MinIO object store |
+| `BOT_PLATFORM` | `telegram` | Interactive bot platform (`telegram` or `discord`) |
+| `TELEGRAM_BOT_TOKEN` | `your_bot_token` | HTTP API token from `@BotFather` |
+| `TELEGRAM_USER1_ID` | `123456789` | First researcher's Telegram User ID |
+| `TELEGRAM_USER2_ID` | `987654321` | Second researcher's Telegram User ID |
+| `DISCORD_BOT_TOKEN` | `your_discord_token` | Discord Bot application token (if using Discord) |
+| `USER1_ID`, `USER2_ID` | `123456789012345678` | Allowed Discord Snowflake user IDs |
+| `DATABASE_URL` | `postgresql+asyncpg://...` | PostgreSQL async connection string |
+| `QDRANT_URL` | `http://qdrant:6333` | Qdrant vector database URL |
+| `REDIS_URL` | `redis://redis:6379/0` | Redis broker and cache URL |
+| `MINIO_ENDPOINT` | `minio:9000` | S3-compatible MinIO object store |
 | `GROBID_URL` | `http://grobid:8070` | GROBID TEI XML parser service |
 
 ---
 
 ## 🔧 Troubleshooting
+
+### Problem: Telegram bot displays "Access Denied"
+- **Cause**: Your Telegram user ID is not in `TELEGRAM_USER1_ID` or `TELEGRAM_USER2_ID` in `.env`.
+- **Solution**: The bot's "Access Denied" message explicitly shows your Telegram ID. Copy it, paste it into `TELEGRAM_USER1_ID` in `.env`, and restart the bot.
 
 ### Problem: Discord bot displays "Access Denied"
 - **Cause**: Your Discord user ID is not in `USER1_ID` or `USER2_ID` in `.env`.
@@ -230,10 +244,6 @@ python -m src.discord_bot.bot
 ### Problem: Docker daemon is stopped or cannot connect
 - **Cause**: Docker Desktop is not running or Linux daemon is stopped.
 - **Solution**: The Hermes codebase detects this and automatically switches to the embedded local Qdrant engine and SQLite database. Run `python -m pytest tests/unit -v` and run the FastAPI server locally (`uvicorn src.api.main:app --port 8000`).
-
-### Problem: Semantic Scholar returns status 429
-- **Cause**: Public rate limits on api.semanticscholar.org.
-- **Solution**: Hermes automatically falls back to arXiv and OpenAlex. For dedicated S2 bandwidth, add `SEMANTIC_SCHOLAR_API_KEY` in `.env`.
 
 ---
 
@@ -244,7 +254,7 @@ Hermes includes a comprehensive unit test suite:
 python -m pytest tests/unit -v
 ```
 
-16 passing tests validate:
+19 passing tests validate:
 - BibTeX key standardization (`[Author][Year][Keyword]`)
 - arXiv XML feed parsing & redirection handling
 - Semantic Scholar and OpenAlex model conversions
@@ -254,3 +264,4 @@ python -m pytest tests/unit -v
 - Database models: `PaperChunk`, `IngestionJob`, `Project`, and `UserScratchpad`
 - Multi-agent state transitions (Planner, Writer, Critic with Cohere)
 - Open-Source GapFinder topic clustering, trend analysis, graph bridges, and signal extraction
+- Telegram 2-researcher security allowlist and command decorators

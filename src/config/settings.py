@@ -15,6 +15,14 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
 
+    # Bot Platform Selection
+    BOT_PLATFORM: str = "telegram"  # "telegram" or "discord"
+
+    # 2-Researcher Telegram Allowlist
+    TELEGRAM_BOT_TOKEN: Optional[str] = None
+    TELEGRAM_USER1_ID: Optional[str] = None
+    TELEGRAM_USER2_ID: Optional[str] = None
+
     # 2-Researcher Discord Allowlist
     DISCORD_BOT_TOKEN: str = "dummy_token"
     DISCORD_GUILD_ID: Optional[str] = None

@@ -145,15 +145,15 @@ services:
         condition: service_healthy
 
   # ----------------------------------------------------------------------------
-  # UI & Slash Command Interface: Discord Bot
+  # Interactive Laboratory UI: Telegram / Discord Bot
   # ----------------------------------------------------------------------------
-  discord-bot:
+  bot:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: hermes_discord_bot
+    container_name: hermes_bot
     restart: unless-stopped
-    command: python -m src.discord_bot.bot
+    command: python -m scripts.run_bot
     env_file:
       - .env
     volumes:
