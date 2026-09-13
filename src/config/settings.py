@@ -23,17 +23,13 @@ class Settings(BaseSettings):
     DISCORD_RESEARCHER_1_ID: Optional[str] = None
     DISCORD_RESEARCHER_2_ID: Optional[str] = None
 
-    # LLM Gateway
-    LLM_BASE_URL: str = "https://agentrouter.org/v1"
-    LLM_API_KEY: str = "dummy_key"
-    LLM_MODEL: str = "gpt-4o-mini"
-
-    # Embedding & Reranker Pipeline
-    EMBEDDING_PROVIDER: str = "openai"
-    EMBEDDING_MODEL: str = "text-embedding-3-small"
-    EMBEDDING_DIM: int = 1536
-    USE_RERANKER: bool = False
-    RERANKER_MODEL: str = "BAAI/bge-reranker-base"
+    # Cohere API Configuration (ALL model operations: Chat, Reasoning, Embeddings, Reranking)
+    COHERE_API_KEY: str = "dummy_cohere_key"
+    COHERE_CHAT_MODEL: str = "command-r-plus"
+    COHERE_EMBED_MODEL: str = "embed-english-v3.0"
+    COHERE_RERANK_MODEL: str = "rerank-english-v3.0"
+    COHERE_EMBED_DIM: int = 1024
+    USE_RERANKER: bool = True
 
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./hermes_research.db"
@@ -48,6 +44,7 @@ class Settings(BaseSettings):
     MINIO_ACCESS_KEY: str = "minio_hermes_admin"
     MINIO_SECRET_KEY: str = "minio_hermes_secret_2026"
     MINIO_BUCKET_PAPERS: str = "hermes-papers"
+    MINIO_BUCKET: str = "hermes-papers"
     MINIO_SECURE: bool = False
 
     # Task Queue & Cache

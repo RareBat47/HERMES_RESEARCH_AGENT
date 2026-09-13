@@ -112,6 +112,25 @@ async def draft_section(req: DraftRequest):
     return {"section": req.section, "project_id": req.project_id, "draft": content}
 
 
+class GapRequest(BaseModel):
+    project_id: Optional[int] = None
+    optional_filters: Optional[Dict[str, Any]] = None
+    papers: Optional[List[Dict[str, Any]]] = None
+
+
+@router.post("/gaps")
+async def find_research_gaps(req: GapRequest):
+    """Find literature research gaps using open-source clustering, graph analysis, and Cohere synthesis."""
+    try:
+        result = await brain.analyze_project_gaps(
+            project_id=req.project_id,
+            papers=req.papers,
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/verify-claim")
 async def verify_claim(req: VerifyRequest):
     result = await brain.critic.verify_claim(
@@ -120,3 +139,4 @@ async def verify_claim(req: VerifyRequest):
         project_id=req.project_id,
     )
     return result.model_dump()
+

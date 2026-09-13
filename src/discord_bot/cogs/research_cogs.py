@@ -318,7 +318,69 @@ class ResearchCog(commands.Cog):
             await interaction.followup.send(f"⚠️ Error: {e}")
 
     # --------------------------------------------------------------------------
-    # 8. /outline topic target
+    # 8. /gaps (project_id optional) -> top 5 gaps with evidence & experiments
+    # --------------------------------------------------------------------------
+    @app_commands.command(name="gaps", description="Identify literature gaps using open-source topic clusters, graph analysis, and trends.")
+    @app_commands.describe(project_id="Project ID (default: active project)")
+    async def gaps(
+        self,
+        interaction: discord.Interaction,
+        project_id: Optional[int] = 1,
+    ):
+        await interaction.response.defer()
+        target_id = project_id or 1
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                res = await client.post(
+                    f"{API_BASE}/agent/gaps",
+                    json={"project_id": target_id},
+                )
+                if res.status_code == 200:
+                    data = res.json()
+                    total = data.get("total_papers_analyzed", 0)
+                    embed = discord.Embed(
+                        title=f"🔬 Open-Source Research Gap Analysis (Project #{target_id})",
+                        description=f"Analyzed **{total}** papers using topic clustering, citation graph bridges, and publication velocity.",
+                        color=0x9B59B6,
+                    )
+                    # Synthesized top gaps
+                    synth_gaps = data.get("synthesized_gaps", [])
+                    if synth_gaps:
+                        gaps_text = "\n".join([f"• **Gap {i+1}:** {g}" for i, g in enumerate(synth_gaps[:5])])
+                        embed.add_field(name="🎯 Top Literature Gaps", value=gaps_text[:1024], inline=False)
+
+                    # Underexplored clusters
+                    underexplored = data.get("underexplored_clusters", [])
+                    if underexplored:
+                        under_text = "\n".join([f"• **Cluster #{c.get('cluster_id')}:** {c.get('topic_name')} ({c.get('paper_count')} papers, recency: {c.get('recency_ratio')})" for c in underexplored[:3]])
+                        embed.add_field(name="📈 Emerging / Underexplored Frontiers", value=under_text[:1024], inline=False)
+
+                    # Bridge gaps
+                    bridges = data.get("bridge_gaps", [])
+                    if bridges:
+                        bridge_text = "\n".join([f"• **Betweenness Bridge:** `{b.get('source_paper')}` ↔ `{b.get('target_paper')}` ({b.get('relationship')})" for b in bridges[:3]])
+                        embed.add_field(name="🌉 Weakly-Connected Community Bridges", value=bridge_text[:1024], inline=False)
+
+                    # Proposed experiments & searches
+                    exps = data.get("proposed_experiments", [])
+                    if exps:
+                        exp_text = "\n".join([f"🧪 {e}" for e in exps[:3]])
+                        embed.add_field(name="💡 Recommended Experiments", value=exp_text[:1024], inline=False)
+
+                    searches = data.get("recommended_searches", [])
+                    if searches:
+                        search_text = "\n".join([f"`{s}`" for s in searches[:3]])
+                        embed.add_field(name="🔍 Recommended Follow-Up Searches", value=search_text[:1024], inline=False)
+
+                    await interaction.followup.send(embed=embed)
+                else:
+                    await interaction.followup.send(f"❌ Gap analysis failed: {res.text}")
+        except Exception as e:
+            logger.error(f"Error in /gaps command: {e}")
+            await interaction.followup.send(f"⚠️ Error executing gap analysis: {e}")
+
+    # --------------------------------------------------------------------------
+    # 9. /outline topic target
     # --------------------------------------------------------------------------
     @app_commands.command(name="outline", description="Generate structured academic outline with citation placements.")
     @app_commands.describe(topic="Research manuscript topic", target="Target section or focus")

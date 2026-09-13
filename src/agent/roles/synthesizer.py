@@ -1,13 +1,13 @@
 import json
 from typing import Any, Dict, List
-from src.agent.llm_client import LLMClient
+from src.agent.cohere_client import CohereClient
 from src.agent.state import AgentState
 from src.common.logging import setup_logger
 
 logger = setup_logger("hermes.agent.synthesizer")
 
 SYNTHESIZER_SYSTEM_PROMPT = """You are a Principal Investigator leading a top research initiative.
-Your mission is to perform cross-paper synthesis across multiple candidate works.
+Your mission is to perform cross-paper synthesis across multiple candidate works using Cohere.
 
 Analyze the papers' problems, methods, benchmarks, and limitations to produce:
 1. Comparison Matrix: Key differences across methodology, assumptions, computational cost, and performance.
@@ -30,14 +30,14 @@ Output valid JSON matching this schema:
 
 
 class SynthesizerAgent:
-    """Builds cross-paper comparison matrices, isolates consensus, and highlights research gaps."""
+    """Builds cross-paper comparison matrices, isolates consensus, and highlights research gaps using Cohere."""
 
-    def __init__(self, llm_client: LLMClient) -> None:
-        self.llm = llm_client
+    def __init__(self, cohere_client: CohereClient) -> None:
+        self.cohere = cohere_client
 
     async def synthesize(self, state: AgentState) -> AgentState:
         notes = state.paper_notes or state.candidate_papers[:6]
-        logger.info(f"Synthesizing across {len(notes)} literature artifacts...")
+        logger.info(f"Synthesizing across {len(notes)} literature artifacts with Cohere...")
 
         context = f"Research Goal: {state.research_question}\n\nPapers Context:\n"
         for i, n in enumerate(notes, 1):
@@ -48,16 +48,12 @@ class SynthesizerAgent:
             limitations = n.get("limitations", "")
             context += f"[{key}] Title: {title}\nMethod: {method}\nResults: {results}\nLimitations: {limitations}\n\n"
 
-        messages = [
-            {"role": "system", "content": SYNTHESIZER_SYSTEM_PROMPT},
-            {"role": "user", "content": context},
-        ]
-
         try:
-            content = await self.llm.chat_completion(
-                messages=messages,
+            content = await self.cohere.chat(
+                message=context,
+                system_prompt=SYNTHESIZER_SYSTEM_PROMPT,
                 temperature=0.2,
-                response_format={"type": "json_object"},
+                json_response=True,
             )
             data = json.loads(content)
             state.synthesis_matrix = data.get("matrix", [])

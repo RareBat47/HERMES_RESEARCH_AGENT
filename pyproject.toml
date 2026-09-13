@@ -7,7 +7,7 @@ name = "hermes-research-agent"
 version = "0.1.0"
 description = "Academic-first collaborative research assistant bot with literature pipeline, GROBID parsing, multi-agent synthesis, and Discord UX."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 authors = [
     { name = "Hermes Research Team" }
 ]
@@ -32,7 +32,12 @@ dependencies = [
     "lxml>=5.1.0",
     "bibtexparser>=1.4.0",
     "tenacity>=8.2.3",
-    "rich>=13.7.0"
+    "rich>=13.7.0",
+    "cohere>=5.0.0",
+    "scikit-learn>=1.4.0",
+    "networkx>=3.2.0",
+    "pandas>=2.2.0",
+    "numpy>=1.26.0"
 ]
 
 [project.optional-dependencies]
@@ -43,7 +48,12 @@ api = [
     "sqlalchemy>=2.0.28",
     "asyncpg>=0.29.0",
     "aiosqlite>=0.20.0",
-    "httpx>=0.27.0"
+    "httpx>=0.27.0",
+    "cohere>=5.0.0",
+    "scikit-learn>=1.4.0",
+    "networkx>=3.2.0",
+    "pandas>=2.2.0",
+    "numpy>=1.26.0"
 ]
 bot = [
     "discord.py>=2.3.2",
@@ -57,7 +67,12 @@ worker = [
     "beautifulsoup4>=4.12.0",
     "lxml>=5.1.0",
     "qdrant-client>=1.8.0",
-    "boto3>=1.34.0"
+    "boto3>=1.34.0",
+    "cohere>=5.0.0",
+    "scikit-learn>=1.4.0",
+    "networkx>=3.2.0",
+    "pandas>=2.2.0",
+    "numpy>=1.26.0"
 ]
 dev = [
     "pytest>=8.0.0",
@@ -69,7 +84,7 @@ dev = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

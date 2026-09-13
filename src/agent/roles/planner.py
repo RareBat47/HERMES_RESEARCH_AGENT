@@ -1,6 +1,6 @@
 import json
 from typing import Any, Dict
-from src.agent.llm_client import LLMClient
+from src.agent.cohere_client import CohereClient
 from src.agent.state import AgentState
 from src.common.logging import setup_logger
 
@@ -21,27 +21,24 @@ Given the research goal, output a strict JSON object with the following schema:
   "exclusion_criteria": ["criteria 1", "criteria 2", ...],
   "reading_strategy": ["priority topic 1", "priority topic 2", ...]
 }
-Ensure search queries use effective Boolean keywords without over-constraining.
+Ensure search queries use effective keywords without over-constraining.
 """
 
 
 class PlannerAgent:
-    """Deconstructs a research objective into sub-questions, targeted queries, and inclusion criteria."""
+    """Deconstructs a research objective into sub-questions, targeted queries, and inclusion criteria using Cohere."""
 
-    def __init__(self, llm_client: LLMClient) -> None:
-        self.llm = llm_client
+    def __init__(self, cohere_client: CohereClient) -> None:
+        self.cohere = cohere_client
 
     async def plan(self, state: AgentState) -> AgentState:
-        logger.info(f"Generating research plan for: {state.research_question}")
-        messages = [
-            {"role": "system", "content": PLANNER_SYSTEM_PROMPT},
-            {"role": "user", "content": f"Research Goal: {state.research_question}"},
-        ]
+        logger.info(f"Generating research plan with Cohere for: {state.research_question}")
         try:
-            content = await self.llm.chat_completion(
-                messages=messages,
+            content = await self.cohere.chat(
+                message=f"Research Goal: {state.research_question}",
+                system_prompt=PLANNER_SYSTEM_PROMPT,
                 temperature=0.1,
-                response_format={"type": "json_object"},
+                json_response=True,
             )
             data = json.loads(content)
             state.sub_questions = data.get("sub_questions", [])
@@ -55,7 +52,6 @@ class PlannerAgent:
         except Exception as e:
             logger.error(f"Planning failed: {e}")
             state.errors.append(f"Planner error: {e}")
-            # Fallback queries
             state.sub_questions = [state.research_question]
             state.search_queries = [state.research_question]
 

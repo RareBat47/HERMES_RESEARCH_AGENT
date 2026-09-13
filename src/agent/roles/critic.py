@@ -1,7 +1,7 @@
 import json
 import re
 from typing import List, Optional
-from src.agent.llm_client import LLMClient
+from src.agent.cohere_client import CohereClient
 from src.common.logging import setup_logger
 from src.common.models import CitationVerificationResult
 from src.storage.vector_store import VectorStore
@@ -29,8 +29,8 @@ Output valid JSON:
 class CriticAgent:
     """Rigorous citation verification and claim-grounding inspector."""
 
-    def __init__(self, llm_client: LLMClient, vector_store: Optional[VectorStore] = None) -> None:
-        self.llm = llm_client
+    def __init__(self, cohere_client: CohereClient, vector_store: Optional[VectorStore] = None) -> None:
+        self.cohere = cohere_client
         self.vector_store = vector_store or VectorStore()
 
     async def verify_claim(
@@ -69,7 +69,7 @@ class CriticAgent:
         ]
 
         try:
-            content = await self.llm.chat_completion(
+            content = await self.cohere.chat_completion(
                 messages=messages,
                 temperature=0.0,
                 response_format={"type": "json_object"},

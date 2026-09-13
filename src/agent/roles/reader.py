@@ -1,13 +1,13 @@
 import json
 from typing import Any, Dict, List
-from src.agent.llm_client import LLMClient
+from src.agent.cohere_client import CohereClient
 from src.agent.state import AgentState
 from src.common.logging import setup_logger
 from src.common.models import StructuredPaperNote
 
 logger = setup_logger("hermes.agent.reader")
 
-READER_SYSTEM_PROMPT = """You are a Principal Scientific Reviewer for top conferences (NeurIPS/ICLR/Nature).
+READER_SYSTEM_PROMPT = """You are a Principal Scientific Reviewer for top conferences.
 Your task is to extract a deep, rigorous, structured note from the provided scientific paper.
 
 Return a valid JSON object strictly matching this schema:
@@ -29,10 +29,10 @@ Be precise, academic, and avoid superficial summaries.
 
 
 class ReaderAgent:
-    """Extracts structured scientific contributions, empirical results, and exact quotes."""
+    """Extracts structured scientific contributions, empirical results, and exact quotes using Cohere."""
 
-    def __init__(self, llm_client: LLMClient) -> None:
-        self.llm = llm_client
+    def __init__(self, cohere_client: CohereClient) -> None:
+        self.cohere = cohere_client
 
     async def extract_note(
         self,
@@ -41,22 +41,18 @@ class ReaderAgent:
         abstract: str,
         sections_text: str = "",
     ) -> StructuredPaperNote:
-        logger.info(f"Extracting structured note for paper: {bibtex_key}")
+        logger.info(f"Extracting structured note with Cohere for paper: {bibtex_key}")
 
         content_input = f"Title: {title}\n\nAbstract:\n{abstract}\n\n"
         if sections_text:
-            content_input += f"Extracted Sections:\n{sections_text[:14000]}"
-
-        messages = [
-            {"role": "system", "content": READER_SYSTEM_PROMPT},
-            {"role": "user", "content": content_input},
-        ]
+            content_input += f"Extracted Sections:\n{sections_text[:12000]}"
 
         try:
-            raw_response = await self.llm.chat_completion(
-                messages=messages,
+            raw_response = await self.cohere.chat(
+                message=content_input,
+                system_prompt=READER_SYSTEM_PROMPT,
                 temperature=0.1,
-                response_format={"type": "json_object"},
+                json_response=True,
             )
             data = json.loads(raw_response)
             data["paper_bibtex_key"] = bibtex_key

@@ -4,7 +4,7 @@ import re
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.agent.llm_client import LLMClient
+from src.agent.cohere_client import CohereClient
 from src.agent.roles.reader import ReaderAgent
 from src.common.exceptions import IngestionError
 from src.common.logging import setup_logger
@@ -39,8 +39,9 @@ class PaperIngestionService:
         self.grobid = GrobidParser()
         self.pymupdf = PyMuPDFParser()
         self.chunker = AcademicChunker()
-        self.vector_store = VectorStore()
-        self.reader = ReaderAgent(LLMClient())
+        self.cohere = CohereClient()
+        self.vector_store = VectorStore(cohere_client=self.cohere)
+        self.reader = ReaderAgent(self.cohere)
 
     async def create_job(self, identifier: str, project_id: Optional[int] = None) -> IngestionJob:
         async with async_session_maker() as session:

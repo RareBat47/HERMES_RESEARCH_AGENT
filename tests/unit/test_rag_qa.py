@@ -1,14 +1,14 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from src.agent.llm_client import LLMClient
+from src.agent.cohere_client import CohereClient
 from src.agent.rag_qa import GroundedQAAgent
 from src.storage.vector_store import VectorStore
 
 
 @pytest.mark.asyncio
 async def test_grounded_qa_with_evidence():
-    mock_llm = MagicMock(spec=LLMClient)
-    mock_llm.chat_completion = AsyncMock(
+    mock_cohere = MagicMock(spec=CohereClient)
+    mock_cohere.chat_completion = AsyncMock(
         return_value="""{
             "answer": "Self-attention reduces sequential operations to O(1) \\\\cite{Vaswani2017Attention}.",
             "is_grounded": true,
@@ -42,7 +42,7 @@ async def test_grounded_qa_with_evidence():
         ]
     )
 
-    qa = GroundedQAAgent(mock_llm, mock_vector)
+    qa = GroundedQAAgent(mock_cohere, mock_vector)
     result = await qa.answer_question("How does self-attention affect sequential operations?")
 
     assert result.is_grounded is True
@@ -54,11 +54,11 @@ async def test_grounded_qa_with_evidence():
 
 @pytest.mark.asyncio
 async def test_grounded_qa_no_evidence_proposes_searches():
-    mock_llm = MagicMock(spec=LLMClient)
+    mock_cohere = MagicMock(spec=CohereClient)
     mock_vector = MagicMock(spec=VectorStore)
     mock_vector.search = AsyncMock(return_value=[])  # Empty library
 
-    qa = GroundedQAAgent(mock_llm, mock_vector)
+    qa = GroundedQAAgent(mock_cohere, mock_vector)
     result = await qa.answer_question("What is the quantum teleportation fidelity of system X?")
 
     assert result.is_grounded is False

@@ -1,6 +1,6 @@
 import json
 from typing import Any, Dict, List, Optional
-from src.agent.llm_client import LLMClient
+from src.agent.cohere_client import CohereClient
 from src.common.logging import setup_logger
 from src.common.models import CitationReference, GroundedAnswer
 from src.storage.vector_store import VectorStore
@@ -42,8 +42,8 @@ Output valid JSON matching this schema:
 class GroundedQAAgent:
     """Answers academic questions grounded strictly in indexed library passages with exact citation spans."""
 
-    def __init__(self, llm_client: LLMClient, vector_store: VectorStore) -> None:
-        self.llm = llm_client
+    def __init__(self, cohere_client: CohereClient, vector_store: VectorStore) -> None:
+        self.cohere = cohere_client
         self.vector_store = vector_store
 
     async def answer_question(
@@ -89,7 +89,7 @@ class GroundedQAAgent:
         ]
 
         try:
-            raw_response = await self.llm.chat_completion(
+            raw_response = await self.cohere.chat_completion(
                 messages=messages,
                 temperature=0.1,
                 response_format={"type": "json_object"},
