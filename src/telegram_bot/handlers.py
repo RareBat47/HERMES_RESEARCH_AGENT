@@ -15,6 +15,8 @@ API_BASE = "http://localhost:8000"
 @restricted
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Welcome message and system overview."""
+    user = update.effective_user
+    uid_str = f"`{user.id}`" if user else "Unknown"
     text = (
         "🏛️ *Welcome to Hermes Academic Research Agent*\n\n"
         "I am your collaborative laboratory assistant powered by **Cohere** "
@@ -32,7 +34,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "• `/project [create|switch|truth]` — Long-term project memory\n"
         "• `/tasks [add|list|done]` — Laboratory task board\n"
         "• `/scratchpad [add|view|clear]` — Private per-researcher notes\n\n"
-        "Type `/help` for detailed syntax."
+        f"👤 *Your Telegram User ID:* {uid_str}\n"
+        "Type `/help` for detailed command syntax."
     )
     await update.effective_message.reply_text(text, parse_mode="Markdown")
 
