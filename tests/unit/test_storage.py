@@ -59,8 +59,11 @@ async def test_user_scratchpad():
 
 @pytest.mark.asyncio
 async def test_paper_chunk_and_ingestion_job():
+    import uuid
     from src.storage.models import IngestionJob, Paper, PaperChunk, PaperSection
     await init_db()
+
+    unique_key = f"TestVaswani2017_{uuid.uuid4().hex[:6]}"
 
     async with async_session_maker() as session:
         # 1. Test IngestionJob
@@ -72,7 +75,7 @@ async def test_paper_chunk_and_ingestion_job():
 
         # 2. Test Paper and PaperChunk
         paper = Paper(
-            bibtex_key="TestVaswani2017",
+            bibtex_key=unique_key,
             title="Attention Is All You Need",
             abstract="Transformer architecture test",
             parse_status="parsed",
@@ -91,6 +94,7 @@ async def test_paper_chunk_and_ingestion_job():
         session.add(section)
         await session.flush()
 
+        mock_point_id = f"mock-qdrant-{uuid.uuid4().hex[:8]}"
         chunk = PaperChunk(
             paper_id=paper.id,
             section_id=section.id,
@@ -99,14 +103,14 @@ async def test_paper_chunk_and_ingestion_job():
             char_start=0,
             char_end=24,
             page_number=3,
-            qdrant_point_id="mock-qdrant-uuid-12345",
+            qdrant_point_id=mock_point_id,
             embedding_model="text-embedding-3-small",
         )
         session.add(chunk)
         await session.commit()
 
         # Query chunk
-        stmt = select(PaperChunk).where(PaperChunk.qdrant_point_id == "mock-qdrant-uuid-12345")
+        stmt = select(PaperChunk).where(PaperChunk.qdrant_point_id == mock_point_id)
         res = await session.execute(stmt)
         saved_chunk = res.scalar_one_or_none()
         assert saved_chunk is not None
